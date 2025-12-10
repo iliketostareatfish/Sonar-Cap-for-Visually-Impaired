@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+// getting the exact CPU speed from the system so our distance calculations stay accurate.
 extern uint32_t SystemCoreClock;
 extern void SystemCoreClockUpdate(void);
 
@@ -29,7 +30,8 @@ static int filter_idx = 0;
 #define FALL_BACK_TIME_MS       50000    // 50 seconds for back
 #define SUDDEN_CHANGE_CM        30.0f
 
-typedef enum {
+typedef enum 
+{
     FALL_NONE,
     FALL_CHECKING_FORWARD,
     FALL_CHECKING_LEFT,
@@ -42,7 +44,8 @@ static FallState fall_state = FALL_NONE;
 static uint32_t fall_timer_ms = 0;
 static float last_down_distance = -1.0f;
 
-void SysTick_Init(void) {
+void SysTick_Init(void) 
+{
     SystemCoreClockUpdate();
     ticks_per_us = SystemCoreClock / 1000000U;
     
@@ -72,7 +75,7 @@ void delay_ms(uint32_t ms) {
     }
 }
 
-//uart configuration/initialisation
+//uart config/initialization
 
 void UART0_Init(void) {
     SYSCTL->RCGCUART |= 0x01;
@@ -101,8 +104,8 @@ void UART0_Print(const char *s) {
     while (*s) UART0_SendChar(*s++);
 }
 
-//adc config with temp sensor (lm35)
-
+//adc config with temp sensor (lm35) 
+// dani check if heres any difference with just sensor vs wo extension board
 void ADC0_Init(void) {
     SYSCTL->RCGCADC |= 0x01;
     while ((SYSCTL->PRADC & 0x01) == 0);
@@ -138,7 +141,8 @@ void UpdateSpeedOfSound(float T_C) {
     us_per_cm = 2000000.0f / (v_m_s * 100.0f);
 }
 
-//ultrasonoic initialisation. function used to initialise all 4 sensors
+//ultrasonoic initialization 
+// for initializing all 4 sensors
 void Ultrasonic_Init(void) {
     SYSCTL->RCGCGPIO |= 0x02;
     while ((SYSCTL->PRGPIO & 0x02) == 0) {}
@@ -157,12 +161,12 @@ void PWM_Init(void) {
 	
     SYSCTL->RCGCPWM |= 0x02;
 
-    SYSCTL->RCGCGPIO |= 0x28; // clock enable port d f
+    SYSCTL->RCGCGPIO |= 0x28; // clock enable port d, f
 
     while ((SYSCTL->PRPWM & 0x02) == 0) {}
     while ((SYSCTL->PRGPIO & 0x28) != 0x28) {}
     
-    // pwm div configuration
+    // pwm div 
     SYSCTL->RCC |= (1 << 20);
     SYSCTL->RCC &= ~(0x7 << 17);
     SYSCTL->RCC |= (0x1 << 17);
@@ -216,10 +220,11 @@ void PWM_Init(void) {
 /******************************************************************************
  * PWM Duty Cycle Functions (0-100%)
  * 
- * duty=0%   -> CMP=0          -> output stays LOW
- * duty=50%  -> CMP=PERIOD/2   -> 50% high time
- * duty=100% -> CMP=PERIOD-1   -> output mostly HIGH
+ * duty=0%   --> CMP=0          --> output stays LOW
+ * duty=50%  --> CMP=PERIOD/2   --> 50% high time
+ * duty=100% -=> CMP=PERIOD-1   --> output mostly HIGH
  *****************************************************************************/
+
 void PWM_SetDuty_Front(uint32_t duty) {
     if (duty > 100) duty = 100;
     if (duty == 0) {
@@ -280,6 +285,9 @@ uint32_t DistanceToDuty(float distance_cm) {
     return duty;
 }
 
+//sends a trigger pulse to the selected sensor 
+// also measures the echo duration to calculate distance
+
 float Ultrasonic_Read(uint8_t trig_mask, uint8_t echo_mask) {
     uint32_t timeout_ticks = 30000 * ticks_per_us;
     uint32_t start_wait, pulse_start;
@@ -307,6 +315,8 @@ float Ultrasonic_Read(uint8_t trig_mask, uint8_t echo_mask) {
     if (distance < 2.0f || distance > 400.0f) return -1.0f;
     return distance;
 }
+
+// sorting da sensor readings and stuff
 
 float FindMedian(float *arr) {
     float temp[FILTER_SIZE];
@@ -337,6 +347,9 @@ float FindMedian(float *arr) {
     if (valid >= 3) return temp[FILTER_SIZE / 2];
     return sum / valid;
 }
+
+// to account for garbage (devices and electronics hahahaha) values
+//sorry
 
 void InitFilters(void) {
     for (int i = 0; i < FILTER_SIZE; i++) {
@@ -398,6 +411,7 @@ const char* GetFallStateName(void) {
  * - Right:   Right < 10cm -> wait 50s
  * - Back:    ALL sensors > 200cm -> wait 50s
  */
+
 int CheckFallDetection(float dist_front, float dist_down, 
                        float dist_left, float dist_right,
                        uint32_t loop_time_ms) {
@@ -655,7 +669,7 @@ int main(void) {
         PWM_SetDuty_Left(duty_left);
         PWM_SetDuty_Right(duty_right);
         
-        // fall detection
+        // fall detection 
         int fall_detected = CheckFallDetection(dist_front, dist_down, 
                                                 dist_left, dist_right, 
                                                 loop_time_ms);
@@ -670,7 +684,7 @@ int main(void) {
             UART0_Print("!!!                                             !!!\r\n");
             UART0_Print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\r\n");
             
-            // Set all PWM to max as alert
+            // Set all PWM to max as alert!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             PWM_SetDuty_Front(99);
             PWM_SetDuty_Down(99);
             PWM_SetDuty_Left(99);
@@ -683,7 +697,7 @@ int main(void) {
             }
         }
         
-        // Print readings
+        // Printing all da readings
         UART0_Print("F:");
         if (dist_front > 0) {
             sprintf(buffer, "%3d", (int)dist_front);
